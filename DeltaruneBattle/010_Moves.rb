@@ -1,103 +1,243 @@
 #===============================================================================
 # Deltarune Battle - Moves
 #
-# This class is independent from the Pokémon Essentials battle system.
-# GameData::Move is used only as a data source.
+# Independent Move representation.
+#
+# Pokémon Essentials is used only as a source of move data.
+# Damage, execution and battle behavior belong to DeltaruneBattle.
 #===============================================================================
 
 module DeltaruneBattle
 
   class Move
 
+    attr_reader :source
+
     attr_reader :id
     attr_reader :name
     attr_reader :type
+    attr_reader :category
     attr_reader :power
     attr_reader :accuracy
-    attr_reader :category
     attr_reader :pp
     attr_reader :max_pp
     attr_reader :priority
-    attr_reader :source
 
-    def initialize(move_id, source=nil)
-      @id       = move_id
-      @source   = source
+    def initialize(source=nil, options={})
+      @source = source
 
-      @name     = nil
-      @type     = nil
-      @power    = 0
-      @accuracy = 100
+      @id       = nil
+      @name     = "Move"
+      @type     = :NORMAL
       @category = 0
-      @pp       = 0
-      @max_pp   = 0
+      @power    = 40
+      @accuracy = 100
+      @pp       = 1
+      @max_pp   = 1
       @priority = 0
 
-      load_data
+      copy_source(source)
+      apply_options(options)
+      normalize
     end
 
-    #---------------------------------------------------------------------------
-    # Load data from Pokémon Essentials.
-    #
-    # This is the ONLY place where the battle system reads GameData::Move.
-    #---------------------------------------------------------------------------
+    #===========================================================================
+    # Factory
+    #===========================================================================
 
-    def load_data
-      move_data = @source
+    def self.from_essentials(move)
+      return nil if !move
 
-      if !move_data
+      if move.is_a?(DeltaruneBattle::Move)
+        return move
+      end
+
+      return DeltaruneBattle::Move.new(move)
+    end
+
+    #===========================================================================
+    # Copy Essentials Move
+    #===========================================================================
+
+    def copy_source(move)
+      return if !move
+
+      #-----------------------------------------------------------------------
+      # ID
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:id)
         begin
-          move_data = GameData::Move.get(@id)
+          @id = move.id
         rescue
-          move_data = nil
         end
       end
 
-      if !move_data
-        @name = @id.to_s
-        return
+      #-----------------------------------------------------------------------
+      # Name
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:name)
+        begin
+          value = move.name
+
+          if value &&
+             !value.to_s.empty?
+
+            @name = value.to_s
+          end
+        rescue
+        end
       end
 
-      @name = move_data.name if move_data.respond_to?(:name)
+      #-----------------------------------------------------------------------
+      # Type
+      #-----------------------------------------------------------------------
 
-      if move_data.respond_to?(:type)
-        @type = move_data.type
+      if move.respond_to?(:type)
+        begin
+          @type = move.type
+        rescue
+        end
       end
 
-      if move_data.respond_to?(:base_damage)
-        @power = move_data.base_damage.to_i
-      elsif move_data.respond_to?(:power)
-        @power = move_data.power.to_i
+      #-----------------------------------------------------------------------
+      # Category
+      #
+      # Essentials normally represents:
+      #
+      # 0 = Physical
+      # 1 = Special
+      # 2 = Status
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:category)
+        begin
+          @category = move.category
+        rescue
+        end
       end
 
-      if move_data.respond_to?(:accuracy)
-        @accuracy = move_data.accuracy.to_i
+      #-----------------------------------------------------------------------
+      # Power
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:power)
+        begin
+          @power = move.power.to_i
+        rescue
+        end
       end
 
-      if move_data.respond_to?(:category)
-        @category = move_data.category
+      #-----------------------------------------------------------------------
+      # Accuracy
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:accuracy)
+        begin
+          @accuracy = move.accuracy.to_i
+        rescue
+        end
       end
 
-      if move_data.respond_to?(:total_pp)
-        @max_pp = move_data.total_pp.to_i
-        @pp = @max_pp
-      elsif move_data.respond_to?(:pp)
-        @max_pp = move_data.pp.to_i
-        @pp = @max_pp
+      #-----------------------------------------------------------------------
+      # PP
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:pp)
+        begin
+          @pp = move.pp.to_i
+        rescue
+        end
       end
 
-      if move_data.respond_to?(:priority)
-        @priority = move_data.priority.to_i
+      if move.respond_to?(:total_pp)
+        begin
+          @max_pp = move.total_pp.to_i
+        rescue
+        end
+      elsif move.respond_to?(:max_pp)
+        begin
+          @max_pp = move.max_pp.to_i
+        rescue
+        end
+      end
+
+      #-----------------------------------------------------------------------
+      # Priority
+      #-----------------------------------------------------------------------
+
+      if move.respond_to?(:priority)
+        begin
+          @priority = move.priority.to_i
+        rescue
+        end
       end
     end
 
-    #---------------------------------------------------------------------------
-    # Basic helpers
-    #---------------------------------------------------------------------------
+    #===========================================================================
+    # Options
+    #===========================================================================
 
-    def damaging?
-      return @power > 0
+    def apply_options(options)
+      return if !options
+      return unless options.respond_to?(:[])
+
+      @id =
+        options[:id] if options[:id]
+
+      @name =
+        options[:name].to_s if options[:name]
+
+      @type =
+        options[:type] if options[:type]
+
+      @category =
+        options[:category].to_i if options[:category]
+
+      @power =
+        options[:power].to_i if options[:power]
+
+      @accuracy =
+        options[:accuracy].to_i if options[:accuracy]
+
+      @pp =
+        options[:pp].to_i if options[:pp]
+
+      @max_pp =
+        options[:max_pp].to_i if options[:max_pp]
+
+      @priority =
+        options[:priority].to_i if options[:priority]
     end
+
+    #===========================================================================
+    # Normalize
+    #===========================================================================
+
+    def normalize
+      @power =
+        0 if @power < 0
+
+      @accuracy =
+        100 if @accuracy <= 0
+
+      @pp =
+        0 if @pp < 0
+
+      @max_pp =
+        @pp if @max_pp <= 0
+
+      @category =
+        0 if @category < 0
+
+      @priority =
+        0 if !@priority
+    end
+
+    #===========================================================================
+    # Categories
+    #===========================================================================
 
     def physical?
       return @category == 0
@@ -111,66 +251,172 @@ module DeltaruneBattle
       return @category == 2
     end
 
+    #===========================================================================
+    # Usability
+    #===========================================================================
+
     def usable?
-      return @pp > 0
+      return false if @pp <= 0
+      return true
     end
 
-    def consume_pp(amount=1)
+    def damaging?
+      return @power > 0
+    end
+
+    #===========================================================================
+    # PP
+    #===========================================================================
+
+    def consume_pp
       return false if @pp <= 0
 
-      @pp -= amount.to_i
-      @pp = 0 if @pp < 0
+      @pp -= 1
 
       return true
     end
 
-    #---------------------------------------------------------------------------
-    # Battle-specific behavior
+    def restore_pp(amount=nil)
+      if amount.nil?
+        @pp = @max_pp
+      else
+        @pp += amount.to_i
+
+        if @pp > @max_pp
+          @pp = @max_pp
+        end
+      end
+
+      return @pp
+    end
+
+    #===========================================================================
+    # Accuracy
+    #===========================================================================
+
+    def hits?
+      return true if @accuracy >= 100
+
+      return rand(100) < @accuracy
+    end
+
+    #===========================================================================
+    # Execution
     #
-    # These methods intentionally do NOT call Pokémon Essentials' battle
-    # mechanics. They are our own rules.
-    #---------------------------------------------------------------------------
-
-    def calculate_power(user, target)
-      return @power
-    end
-
-    def calculate_accuracy(user, target)
-      return @accuracy
-    end
+    # The Move itself does not own the complete battle calculation.
+    # Battle remains responsible for damage resolution.
+    #===========================================================================
 
     def execute(user, target, battle)
-      return false if !usable?
+      return false if !battle
+      return false if !user
+      return false if !target
+
+      if !usable?
+        if battle.respond_to?(:set_message)
+          battle.set_message(
+            "#{@name} has no PP left!"
+          )
+        end
+
+        return false
+      end
 
       consume_pp
 
-      return battle.resolve_move(self, user, target)
+      # Accuracy is handled here because it belongs to Move behavior.
+      if !hits?
+
+        if battle.respond_to?(:set_message)
+          battle.set_message(
+            "#{user.name}'s #{@name} missed!"
+          )
+        end
+
+        return true
+      end
+
+      # The Battle owns damage calculation.
+      if battle.respond_to?(:calculate_damage)
+
+        damage =
+          battle.calculate_damage(
+            user,
+            target,
+            @power,
+            self
+          )
+
+        old_hp =
+          target.hp.to_i
+
+        target.hp =
+          [old_hp - damage, 0].max
+
+        if battle.respond_to?(:set_message)
+          battle.set_message(
+            "#{user.name} used #{@name}! " \
+            "#{damage} damage."
+          )
+        end
+
+        if target.respond_to?(:fainted?) &&
+           target.fainted?
+
+          if battle.respond_to?(:handle_faint)
+            battle.handle_faint(target)
+          end
+        end
+
+        return true
+      end
+
+      return false
+    end
+
+    #===========================================================================
+    # Debug
+    #===========================================================================
+
+    def inspect
+      return(
+        "#<DeltaruneBattle::Move " \
+        "#{@name} #{@type} " \
+        "Power=#{@power} PP=#{@pp}/#{@max_pp}>"
+      )
     end
 
   end
 
   #=============================================================================
-  # Move Factory
+  # Move Data Helpers
   #=============================================================================
 
-  module MoveFactory
+  module MoveData
 
-    def self.from_id(move_id)
-      return DeltaruneBattle::Move.new(move_id)
+    def self.from_essentials(move)
+      return nil if !move
+
+      return DeltaruneBattle::Move.from_essentials(
+        move
+      )
     end
 
-    def self.from_essentials(move_data)
-      return nil if !move_data
+    def self.from_id(id)
+      return nil if !id
 
-      move_id = nil
+      begin
 
-      if move_data.respond_to?(:id)
-        move_id = move_data.id
+        move =
+          GameData::Move.get(id)
+
+        return from_essentials(move)
+
+      rescue
+
+        return nil
+
       end
-
-      return nil if !move_id
-
-      return DeltaruneBattle::Move.new(move_id, move_data)
     end
 
   end
