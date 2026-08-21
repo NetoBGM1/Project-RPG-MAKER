@@ -3,7 +3,8 @@
 #
 # Entry point for the independent Deltarune Battle system.
 #
-# Pokémon Essentials is only used as a source of Pokémon data.
+# Pokémon Essentials is used only as a data/resource provider.
+# This system does NOT use Battle::Battle.
 #===============================================================================
 
 module DeltaruneBattle
@@ -29,39 +30,20 @@ module DeltaruneBattle
 
   def self.start_wild(species, level)
 
-    # IMPORTANT:
-    # Explicitly use the Essentials Pokémon class.
+    # Create OUR battle Pokémon.
     #
-    # We do NOT want:
+    # Do not use:
+    #   Pokemon.new(...)
     #
-    #   DeltaruneBattle::Pokemon.new(...)
-    #
-    # here.
-    #
-    # This object is only the source data. Battle will convert it into
-    # DeltaruneBattle::Pokemon.
-    begin
-
-      essentials_pokemon =
-        ::Pokemon.new(
-          species,
-          level
-        )
-
-    rescue => e
-
-      pbMessage(
-        _INTL(
-          "Could not create the wild Pokémon.\n" +
-          "#{e.class}: #{e.message}"
-        )
+    # because Pokémon Essentials also defines Pokemon.
+    pokemon =
+      DeltaruneBattle::Pokemon.new(
+        species,
+        level
       )
 
-      return false
-    end
-
     #---------------------------------------------------------------------------
-    # Player party
+    # Player Party
     #---------------------------------------------------------------------------
 
     player_party = []
@@ -73,33 +55,41 @@ module DeltaruneBattle
 
         next if !pokemon
 
-        begin
-          next if pokemon.egg?
-        rescue
+        if pokemon.respond_to?(:egg?) &&
+           pokemon.egg?
+
+          next
         end
 
         player_party << pokemon
       end
+
     end
+
+    #---------------------------------------------------------------------------
+    # Validate Player Party
+    #---------------------------------------------------------------------------
 
     if player_party.empty?
 
       pbMessage(
-        _INTL(
-          "You have no usable Pokémon!"
-        )
+        _INTL("You have no usable Pokémon!")
       )
 
       return false
     end
 
     #---------------------------------------------------------------------------
-    # Enemy party
+    # Enemy Party
     #---------------------------------------------------------------------------
 
     enemy_party = [
-      essentials_pokemon
+      pokemon
     ]
+
+    #---------------------------------------------------------------------------
+    # Start Battle
+    #---------------------------------------------------------------------------
 
     return start(
       player_party,
@@ -118,7 +108,15 @@ module DeltaruneBattle
     trainer_name=nil
   )
 
+    #---------------------------------------------------------------------------
+    # Prevent Nested Battles
+    #---------------------------------------------------------------------------
+
     return false if @active
+
+    #---------------------------------------------------------------------------
+    # Validate Parties
+    #---------------------------------------------------------------------------
 
     return false if !player_party
     return false if player_party.empty?
@@ -126,9 +124,17 @@ module DeltaruneBattle
     return false if !enemy_party
     return false if enemy_party.empty?
 
+    #---------------------------------------------------------------------------
+    # Activate
+    #---------------------------------------------------------------------------
+
     @active = true
 
     begin
+
+      #-----------------------------------------------------------------------
+      # Create OUR Battle Controller
+      #-----------------------------------------------------------------------
 
       @battle =
         DeltaruneBattle::Battle.new(
@@ -137,14 +143,17 @@ module DeltaruneBattle
           trainer_name
         )
 
+      #-----------------------------------------------------------------------
+      # Start Battle Scene
+      #-----------------------------------------------------------------------
+
       @battle.start
 
-    rescue Exception => e
-
-      # Keep the original RPG Maker error system useful.
-      raise e
-
     ensure
+
+      #-----------------------------------------------------------------------
+      # Always Clean Up
+      #-----------------------------------------------------------------------
 
       @battle = nil
       @active = false
@@ -156,8 +165,9 @@ module DeltaruneBattle
 
 end
 
+
 #===============================================================================
-# Script Calls
+# Script Entry Points
 #===============================================================================
 
 def pbDeltaruneBattle(species, level)
@@ -168,6 +178,7 @@ def pbDeltaruneBattle(species, level)
   )
 
 end
+
 
 def pbDeltaruneWildBattle(species, level)
 
