@@ -5,28 +5,25 @@
 
 class Battle::Scene
 
-  #=============================================================================
-  # Inicialização dos sprites
-  #=============================================================================
-
   alias deltarune_battle_pbInitSprites pbInitSprites
 
   def pbInitSprites
+
     deltarune_battle_pbInitSprites
 
     DeltaruneBattle::Integration.start(self)
+
   end
 
-  #=============================================================================
-  # Atualização gráfica
-  #=============================================================================
 
   alias deltarune_battle_pbGraphicsUpdate pbGraphicsUpdate
 
   def pbGraphicsUpdate
+
     deltarune_battle_pbGraphicsUpdate
 
     DeltaruneBattle::Integration.update
+
   end
 
 end
@@ -42,11 +39,14 @@ module DeltaruneBattle
 
     @scene = nil
     @viewport = nil
+
     @background = nil
+    @battle_ui = nil
+
     @started = false
 
     #===========================================================================
-    # Iniciar
+    # START
     #===========================================================================
 
     def self.start(scene)
@@ -60,29 +60,15 @@ module DeltaruneBattle
       puts "[Deltarune Battle] Integration START"
       puts "=============================================="
 
-      #-----------------------------------------------------------------------
-      # Viewport
-      #-----------------------------------------------------------------------
-
       create_viewport
-
-      #-----------------------------------------------------------------------
-      # Background
-      #-----------------------------------------------------------------------
 
       create_background
 
-      #-----------------------------------------------------------------------
-      # Trainers
-      #-----------------------------------------------------------------------
-
       DeltaruneBattle::TrainerIntegration.create
 
-      #-----------------------------------------------------------------------
-      # Pokémon
-      #-----------------------------------------------------------------------
-
       DeltaruneBattle::BattlerIntegration.create
+
+      create_battle_ui
 
       @started = true
 
@@ -95,7 +81,7 @@ module DeltaruneBattle
     end
 
     #===========================================================================
-    # Scene
+    # SCENE
     #===========================================================================
 
     def self.scene
@@ -103,27 +89,29 @@ module DeltaruneBattle
     end
 
     #===========================================================================
-    # Viewport
-    #===========================================================================
-
-    def self.viewport
-      @viewport
-    end
-
-    #===========================================================================
-    # Battle
+    # BATTLE
     #===========================================================================
 
     def self.get_battle
 
       return nil if !@scene
 
-      return @scene.instance_variable_get(:@battle)
+      @scene.instance_variable_get(:@battle)
 
     end
 
     #===========================================================================
-    # Viewport
+    # VIEWPORT
+    #===========================================================================
+
+    def self.viewport
+
+      @viewport
+
+    end
+
+    #===========================================================================
+    # CREATE VIEWPORT
     #===========================================================================
 
     def self.create_viewport
@@ -144,7 +132,7 @@ module DeltaruneBattle
     end
 
     #===========================================================================
-    # Background
+    # BACKGROUND
     #===========================================================================
 
     def self.create_background
@@ -152,58 +140,111 @@ module DeltaruneBattle
       return if !@viewport
       return if @background
 
-      @background = DeltaruneBattle::BattleBackground.new(
-        @viewport
-      )
+      @background =
+        DeltaruneBattle::BattleBackground.new(
+          @viewport
+        )
 
-      puts "[Deltarune Battle] BBS Background criado."
+      puts "[Deltarune Battle] Background criado."
 
     end
 
     #===========================================================================
-    # Update
+    # UI
+    #===========================================================================
+
+    def self.create_battle_ui
+
+      return if !@viewport
+      return if @battle_ui
+
+      battle = get_battle
+
+      return if !battle
+
+      @battle_ui =
+        DeltaruneBattle::BattleUI.new(
+          @viewport,
+          battle
+        )
+
+      puts "[Deltarune Battle] BattleUI criada."
+
+    end
+
+    #===========================================================================
+    # BATTLE UI
+    #===========================================================================
+
+    def self.battle_ui
+      @battle_ui
+    end
+
+    #===========================================================================
+    # UPDATE
     #===========================================================================
 
     def self.update
 
       return if !@started
 
-      # Background
       @background.update if @background
 
-      # Trainers
       DeltaruneBattle::TrainerIntegration.update
 
-      # Pokémon
       DeltaruneBattle::BattlerIntegration.update
+
+      @battle_ui.update if @battle_ui
 
     end
 
     #===========================================================================
-    # Dispose
+    # MESSAGE
+    #===========================================================================
+
+    def self.set_message(text)
+
+      return if !@battle_ui
+
+      @battle_ui.set_message(text)
+
+    end
+
+    #===========================================================================
+    # DISPOSE
     #===========================================================================
 
     def self.dispose
 
       return if !@started
 
+      puts "=============================================="
       puts "[Deltarune Battle] Integration END"
+      puts "=============================================="
 
-      # Pokémon
-      DeltaruneBattle::BattlerIntegration.dispose
+      if @battle_ui
 
-      # Trainers
-      DeltaruneBattle::TrainerIntegration.dispose
+        @battle_ui.dispose
+        @battle_ui = nil
 
-      # Background
-      if @background
-        @background.dispose
-        @background = nil
       end
 
-      # Viewport
-      if @viewport && !@viewport.disposed?
+      DeltaruneBattle::BattlerIntegration.dispose
+
+      DeltaruneBattle::TrainerIntegration.dispose
+
+      if @background
+
+        @background.dispose
+        @background = nil
+
+      end
+
+      if @viewport &&
+         !@viewport.disposed?
+
         @viewport.dispose
+
       end
 
       @viewport = nil
