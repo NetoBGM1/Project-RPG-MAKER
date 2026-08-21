@@ -1,0 +1,5 @@
+﻿Name       = Deltarune Plugin
+Version    = 1.1.4
+Essentials = 21.1
+Website    = https://lucidious89-tutorials.gitbook.io/deluxe-battle-kit-tutorial/deluxe-battle-kit-for-v21.1/add-on-tutorials/dynamax
+Credits    = Lucidious89
